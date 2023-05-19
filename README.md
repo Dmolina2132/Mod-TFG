@@ -1,1 +1,2 @@
 # Mod-TFG
+En el siguiente repositorio se encuentra el módulo 'Module_grad_hess_estimation.py', que contiene una serie de funciones útiles para calcular las posiciones de los agentes en el contexto de búsquedad de máximos, así como para estimar gradiente y hessiano y para hacer el cálculo del algoritmo BFGS. En el archivo 'Simulaciones_completo.py' Se puede encontran un ejemplo para una función dada de cómo utilizar estos cálculos para hacer ascenso de gradiente, el método de Newton Raphson o bien el método BFGS, todos para el caso de tres dimensiones.
