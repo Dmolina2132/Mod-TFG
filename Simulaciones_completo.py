@@ -8,7 +8,7 @@ import Module_grad_hess_estimation as M
 import numpy as np
 import matplotlib.pyplot as plt
 import math as mt
-import time
+
 # Vamos a realizar las simulaciones para los diferentes casos
 # Definimos la S, p y que para la función que vamos a estudiar
 # Definimos también el centro inicial de todas las formaciones
@@ -22,25 +22,26 @@ S = 1e-04*np.array([[-1, 0, 0],
 p = np.array([[0], [0], [0]],dtype=float)
 q = np.array([0], dtype=float)
 c0 = np.array([[50], [50], [50]], dtype=float)
+
+#Definimos la posición del máximo para esta función
 cf = np.array([[0], [0], [0]])
 
 
 
 # Redefinimos sigma
-
+#Para añadir el ruido a la función, bastaría con sumarle un término aleatorio dentro de la propia función
 
 def sigma(r):
     # Vamos a utilizar S , p y q predefinidos
     return 10000*mt.exp(r.T@S@r+p.T@r+q)
-
+  
+#Incluimos las funciones de gradiente y Hessiano reales, pues esto nos permite comparar el estimado con lo reales
 def grad_sigma(r):
     return 2*10000*mt.exp(r.T@S@r+p.T@r+q)*(S@r+p)
 
 def Hess_sigma(r):
     return 10000*mt.exp(r.T@S@r+p.T@r+q)*(4*(S@r)@(S@r).T+2*S)
     
-#Ya con esto basta con sustituir valores y convertirlo en un array numpy para 
-#obtener los resultados
 
 
 #%%
@@ -51,10 +52,10 @@ def Hess_sigma(r):
 # Hagamos el algoritmo del gradiente de manera exacta y no exacta
 # El gradiente exacto viene dado por:
 
-tgi=time.time()
+#Hacemos el algoritmo para varios radios, pues eso nos permite comparar 
 n=4
 Ds = [0.1,1,10,100]
-alpha = 0.1 #alpha=0.2
+alpha = 0.1 
 errorsT = []
 maxit =250
 
@@ -66,6 +67,8 @@ for D in Ds:
     it = 0
     pos = M.formacion_grad3D(c, n, D)
     errors = np.empty(maxit)
+    
+    #Aquí aplicamos el algoritmo en sí
     while it < maxit:
         grad = M.estim_grad3D(sigma, pos, c, n, D)
         c += alpha*grad
@@ -78,7 +81,6 @@ c_gradreal = np.copy(c0)
 errorsgradreal = np.empty(maxit)
 it = 0
 
-tgf=time.time()
 # Cálculo del gradiente real
 while it < maxit:
     gradreal = grad_sigma(c_gradreal)
@@ -86,7 +88,7 @@ while it < maxit:
     errorsgradreal[it] = np.linalg.norm(c_gradreal-cf, 1)
     it += 1
 
-
+#Hacemos una figura para la comparación
 itera = np.arange(0, maxit)
 color = ['blue', 'black', 'purple', 'green']
 style = ['-', '-', '-', '-']
@@ -102,11 +104,6 @@ for i in range(len(errorsT)):
 
 plt.plot(itera, errorsgradreal, 'r', linewidth=4, label='Gradiente exacto')
 plt.legend()
-# =============================================================================
-# fig.savefig(
-#     'E:/Universidad/Grado en Física/TFG/Simulaciones_ilustraciones/2D/Calculo_gradiente.png', dpi=1000)
-# =============================================================================
-
 plt.show()
 
 
@@ -117,8 +114,8 @@ plt.show()
 
 # %%
 
-
-# Vamos a añadir la variación del error con D
+#Aquí añadimos el error final tras un número suficiente de iteraciones para diferentes radios.
+#Esto no se muestra en el paper, pero es interesante ver cómo la forma del error depende de la función
 n = 4
 maxit = 250
 D = np.linspace(1, 50, 100)
@@ -138,16 +135,13 @@ for d in D:
     errfinal.append(err)
     # Vamos a calcular la pendiente
 
-m = (errfinal[10]-errfinal[1])/(D[10]-D[1])
 plt.plot(D, errfinal)
 plt.xlabel('Radio de la formación (D)')
 plt.ylabel(r'Error $||c-r^*||$')
-#plt.text(4, 0.45, r'||c-r*||='+str(round(m, 3))+'D', rotation=30)
 plt.grid('on')
-#fig.savefig('E:/Universidad/Grado en Física/TFG/Simulaciones_ilustraciones/2D/Error_D_Gradiente.png', dpi=500)
 plt.show()
 
-#Veamos el error del gradiente:
+#Al error respecto al gradiente le pasa algo similar al de la posición
 errorgrad=[]
 for d in D:
     pos=M.formacion_grad3D(c, n, d)
@@ -167,17 +161,17 @@ plt.show()
 # =============================================================================
 # Vamos ahora con el método BFGS
 # =============================================================================
-# Hagamos el algoritmo del gradiente de manera exacta y no exacta
+# De nuevo podemos hacerlo usando el gradiente de manera exacta y no exacta
 n = 4
 Ds = [0.1, 1, 10,100]
 errorsT = []
 maxit = 1000
 H_inv0 = -np.identity(3)  
 dim = 3
-tol=1e-25
+tol=1e-16
 its=[]
 
-tbfi=time.time()
+
 for D in Ds:
     cprev = np.copy(c0)
     pos = M.formacion_grad3D(cprev, n, D)
@@ -208,7 +202,9 @@ for D in Ds:
         grad0 = np.copy(grad1)
     its.append(it)
     errorsT.append(errors)
-tbff=time.time()
+
+
+
 #Incluimos el cálculo con el gradiente real 
 
 cprev = np.copy(c0)
@@ -224,8 +220,7 @@ while it<maxit:
     grad1 =grad_sigma(c)
     H_inv = M.calculo_estH(grad0, grad1, cprev, cnext, H_inv, dim)
     dhi = np.linalg.det(H_inv)
-    if it==1:
-        print(H_inv) 
+    #Aplicamos esta condición para que el hessiano sea definido negativo siempre
     if (dhi >= 0.) :
         H_inv = -1.*np.eye(3,3)
     cprev = np.copy(cnext)
@@ -251,18 +246,17 @@ for i in range(len(errorsT)):
     plt.grid('on')
     
 plt.plot(np.arange(maxit),errorreal,color='red', linewidth=2)
-plt.legend()
-fig.savefig(
-        'E:/Universidad/Grado en Física/TFG/Simulaciones_ilustraciones/2D/Calculo_BFGS.png', dpi=1000)    
+plt.legend()  
 plt.show()
 
 
 
 # %%
 # =============================================================================
-# Hacemos el Hessiano
+# Hacemos el método de Newton
 # =============================================================================
 n=4
+#Cambiamos el alpha, pues en este algoritmo sí podemos tomar un alpha más grande
 alpha=0.8
 Ds = [0.1, 1, 10,100]
 errorsT = []
@@ -271,7 +265,7 @@ c0=np.array([[20.],
                            [20.],
                            [20.]])
 
-tHi=time.time()
+
 for D in Ds:
     c = np.copy(c0)
     it = 0
@@ -295,7 +289,7 @@ for D in Ds:
         it += 1
     
     errorsT.append(errors)
-tHf=time.time()     
+    
 #Calculemos también con el Hessiano exacto
 it=0
 errorsHessreal=np.zeros(maxit)
@@ -329,14 +323,10 @@ for i in range(len(errorsT)):
 plt.plot(itera, errorsHessreal,'aqua',linewidth=3, label='Hessiano exacto')
 
 plt.legend()
-# =============================================================================
-# fig.savefig(
-#         'E:/Universidad/Grado en Física/TFG/Simulaciones_ilustraciones/2D/Calculo_Hessiano.png', dpi=1000)
-# =============================================================================
 plt.show()
 
 #%%
-#Veamos ahora el error respecto a D
+#Veamos ahora el error respecto a D como hicimos con el gradiente
 n = 4
 maxit = 250
 D = np.linspace(1, 50, 100)
@@ -362,15 +352,10 @@ fig, ax = plt.subplots()
 plt.plot(D,errfinal,'purple')
 plt.xlabel('Radio de la formación (D)')
 plt.ylabel(r'Error $||c-r^*||$')
-#plt.yscale('log')
 plt.grid('on')
 plt.show()
 
-#%%
-#Comparación de tiempos de ejcución
-print('El tiempo promedio de cada paso en el gradiente es ', abs(tgf-tgi)/(4*250))
-print('El tiempo promedio de cada paso en el método BFGS es ', abs(tbff-tbfi)/(sum(its)))
-print('El tiempo promedio de cada paso en el Hessiano es ', abs(tHf-tHi)/(4*100))
+
 
 
 
